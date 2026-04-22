@@ -147,7 +147,8 @@ function setStatus(text, color = "#ddd") {
 function connect() {
     setStatus("🔌 Conectando...", "#ffe58a");
 
-    ws = new WebSocket(`ws://${ESP_IP}/ws`);
+    let protocol = location.protocol === "https:" ? "ws://" : "ws://";
+    ws = new WebSocket(${protocol}${ESP_IP}/ws);
 
     ws.onopen = () => setStatus("🟢 Conectado", "#b7eb8f");
 
