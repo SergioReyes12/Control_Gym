@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Control IR ESP32</title>
+
+    <link rel="manifest" href="manifest.json">
+
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        h2 { color: #333; }
+
+        .controls { margin-bottom: 15px; }
+
+        input {
+            width: 200px;
+            padding: 5px;
+        }
+
+        button {
+            padding: 8px 12px;
+            margin: 3px;
+            cursor: pointer;
+            border: none;
+            background: #007BFF;
+            color: white;
+            border-radius: 5px;
+        }
+
+        button:hover { background: #0056b3; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            background: white;
+            padding: 10px;
+            height: 150px;
+            overflow-y: scroll;
+            white-space: pre-wrap;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>📡 Control IR ESP32</h2>
+
+<div class="controls">
+    <input id="ip" placeholder="IP ESP32 (ej: 192.168.1.70)">
+    <button onclick="saveIP()">Guardar IP</button>
+</div>
+
+<div class="controls">
+    <input id="msg" placeholder="Comando manual">
+    <button onclick="sendMsg()">Enviar</button>
+</div>
+
+<div>
+    <button onclick="send('POWER')">POWER</button>
+    <button onclick="send('MUTE')">MUTE</button>
+</div>
+
+<div class="grid">
+    <div></div>
+    <button onclick="send('UP')">⬆️</button>
+    <div></div>
+
+    <button onclick="send('LEFT')">⬅️</button>
+    <button onclick="send('OK')">OK</button>
+    <button onclick="send('RIGHT')">➡️</button>
+
+    <div></div>
+    <button onclick="send('DOWN')">⬇️</button>
+    <div></div>
+</div>
+
+<div id="log"></div>
+
+<script>
+let ws;
+let ESP_IP = localStorage.getItem("esp_ip") || "";
+
+const log = document.getElementById("log");
+const ipInput = document.getElementById("ip");
+
+ipInput.value = ESP_IP;
+
+function addLog(text) {
+    log.innerText += text + "\n";
+    log.scrollTop = log.scrollHeight;
+}
+
+function saveIP() {
+    ESP_IP = ipInput.value;
+    localStorage.setItem("esp_ip", ESP_IP);
+    addLog("💾 IP guardada: " + ESP_IP);
+    connect();
+}
+
+function connect() {
+    if (!ESP_IP) {
+        addLog("⚠️ Configura la IP primero");
+        return;
+    }
+
+    addLog("🔌 Conectando a " + ESP_IP);
+
+    ws = new WebSocket(`ws://${ESP_IP}/ws`);
+
+    ws.onopen = () => addLog("✅ Conectado");
+
+    ws.onmessage = (event) => addLog("📩 " + event.data);
+
+    ws.onclose = () => {
+        addLog("🔄 Reconectando...");
+        setTimeout(connect, 2000);
+    };
+
+    ws.onerror = () => ws.close();
+}
+
+function send(cmd) {
+    if (ws && ws.readyState === 1) {
+        ws.send(cmd);
+        addLog("📤 " + cmd);
+    } else {
+        addLog("❌ No conectado");
+    }
+}
+
+function sendMsg() {
+    const input = document.getElementById("msg");
+    if (!input.value) return;
+    send(input.value);
+    input.value = "";
+}
+
+// auto conectar si ya hay IP
+if (ESP_IP) connect();
+
+// registrar service worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
+</script>
+
+</body>
+</html>
